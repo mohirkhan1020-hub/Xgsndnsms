@@ -1,0 +1,60 @@
+name: Build Flutter APK
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Setup Android & Build Flutter
+        run: |
+          set -o pipefail
+          if [ ! -f "android/gradlew" ]; then
+            mkdir -p .wevlo_bak
+            cp -r lib .wevlo_bak/ 2>/dev/null || true
+            cp -r assets .wevlo_bak/ 2>/dev/null || true
+            cp pubspec.yaml .wevlo_bak/ 2>/dev/null || true
+            cp android/app/src/main/AndroidManifest.xml .wevlo_bak/AndroidManifest.xml 2>/dev/null || true
+            flutter create --platforms=android .
+            rm -rf lib && cp -r .wevlo_bak/lib . 2>/dev/null || true
+            if [ -d ".wevlo_bak/assets" ]; then rm -rf assets && cp -r .wevlo_bak/assets .; fi
+            if [ -f ".wevlo_bak/pubspec.yaml" ]; then cp .wevlo_bak/pubspec.yaml pubspec.yaml; fi
+            if [ -f ".wevlo_bak/AndroidManifest.xml" ]; then cp .wevlo_bak/AndroidManifest.xml android/app/src/main/AndroidManifest.xml; fi
+            rm -rf .wevlo_bak
+          fi
+          if [ -f "android/app/build.gradle" ] && ! grep -q "jvmTarget" android/app/build.gradle; then
+            printf '\nandroid {\n    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }\n}\n' >> android/app/build.gradle
+          fi
+          flutter pub get 2>&1 | tee build-output.log
+          flutter build apk --debug 2>&1 | tee -a build-output.log
+      - name: Publish Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          FILES=(build/app/outputs/flutter-apk/*.apk build/app/outputs/bundle/release/*.aab)
+          if [ ${#FILES[@]} -gt 0 ]; then
+            gh release create "v1.0-${{ github.run_number }}" "${FILES[@]}" --title "v1.0-${{ github.run_number }}" --notes "Built with Wevlo"
+          fi
+      - name: Upload Failure Log
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f "build-output.log" ]; then
+            gh release delete log-latest -y || true
+            gh release create log-latest build-output.log --prerelease --title "Latest Build Log" --notes "Build log" || true
+          fi
