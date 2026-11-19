@@ -1,37 +1,6 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
+"android/app/src/main/kotlin/com/wevlo/flutterapp/MainActivity.kt": `package com.wevlo.flutterapp
 
-android {
-    namespace = "com.wevlo.flutterapp"
-    compileSdk = flutter.compileSdkVersion
+import io.flutter.embedding.android.FlutterActivity
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17
-    }
-
-    defaultConfig {
-        applicationId = "com.wevlo.flutterapp"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0"
-    }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-}
-
-flutter {
-    source = "../.."
-}
+class MainActivity: FlutterActivity()
+`,
